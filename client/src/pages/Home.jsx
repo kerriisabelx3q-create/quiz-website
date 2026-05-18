@@ -32,7 +32,7 @@ function CategoryCard({ cat }) {
             {docs.map(d => (
               <a 
                 key={d.id} 
-                href={`http://localhost:5000/${d.filePath}`} 
+                href={`/${d.filePath}`} 
                 target="_blank" 
                 rel="noreferrer"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none' }}
