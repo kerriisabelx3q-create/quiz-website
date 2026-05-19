@@ -13,9 +13,28 @@ if (!fs.existsSync('./uploads')) {
 }
 const storage = multer.diskStorage({
   destination: function (req, file, cb) { cb(null, 'uploads/') },
-  filename: function (req, file, cb) { cb(null, Date.now() + '-' + file.originalname) }
+  filename: function (req, file, cb) { cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_')) }
 });
-const upload = multer({ storage: storage });
+
+// Chỉ cho phép upload các loại file tài liệu an toàn
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain'
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Loại file không được phép. Chỉ chấp nhận PDF, Word, Excel, PowerPoint, TXT.'), false);
+  }
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 20 * 1024 * 1024 } }); // Giới hạn 20MB
+
 
 // --- AUTH & SETUP ---
 router.post('/admin/setup', async (req, res) => {
