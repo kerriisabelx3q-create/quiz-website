@@ -25,6 +25,7 @@ function AdminDashboard() {
         <button className={`admin-nav-item ${activeTab === 'categories' ? 'active' : ''}`} onClick={() => setActiveTab('categories')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Book size={20} /> Quản lý Phần thi</button>
         <button className={`admin-nav-item ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><FileQuestion size={20} /> Quản lý Câu hỏi</button>
         <button className={`admin-nav-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><FileText size={20} /> Tài liệu Tham khảo</button>
+        <button className={`admin-nav-item ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Book size={20} /> Kho Tài liệu</button>
         <button className={`admin-nav-item ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Settings size={20} /> Cấu hình Form</button>
         <button className={`admin-nav-item ${activeTab === 'submissions' ? 'active' : ''}`} onClick={() => setActiveTab('submissions')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><List size={20} /> Kết quả Thi</button>
         <button className={`admin-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Mail size={20} /> Hộp thư</button>
@@ -35,6 +36,7 @@ function AdminDashboard() {
         {activeTab === 'categories' && <CategoriesManager />}
         {activeTab === 'questions' && <QuestionsManager />}
         {activeTab === 'documents' && <DocumentsManager />}
+        {activeTab === 'library' && <LibraryManager />}
         {activeTab === 'config' && <ConfigManager />}
         {activeTab === 'submissions' && <SubmissionsViewer />}
         {activeTab === 'messages' && <MessagesViewer />}
@@ -424,6 +426,102 @@ function MessagesViewer() {
             <button onClick={()=>handleDelete(m.id)} className="btn btn-danger" style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}>Xóa tin</button>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function LibraryManager() {
+  const [items, setItems] = useState([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('Chung');
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => { fetchItems(); }, []);
+  const fetchItems = async () => { const res = await api.get('/library'); setItems(res.data); };
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!file || !title) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('category', category);
+    formData.append('file', file);
+    try {
+      await api.post('/library', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setTitle(''); setDescription(''); setCategory('Chung'); setFile(null);
+      fetchItems();
+    } catch (err) { alert('Lỗi tải lên!'); }
+    setUploading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Xóa tài liệu này?')) {
+      await api.delete(`/library/${id}`);
+      fetchItems();
+    }
+  };
+
+  const FILE_ICONS = { PDF: '📄', DOCX: '📝', DOC: '📝', XLSX: '📊', XLS: '📊', PPTX: '📑', PPT: '📑', TXT: '🗒️' };
+
+  return (
+    <div>
+      <h2>Kho Tài liệu</h2>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+        Tài liệu trong kho này sẽ hiển thị ở trang <b>Kho Tài liệu</b> công khai, không gắn với phần thi cụ thể.
+      </p>
+      <form onSubmit={handleUpload} style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Tải lên tài liệu mới</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Tên tài liệu *</label>
+            <input required className="input-field" value={title} onChange={e => setTitle(e.target.value)} placeholder="VD: Quy trình nghiệp vụ 2024" />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Danh mục</label>
+            <input className="input-field" value={category} onChange={e => setCategory(e.target.value)} placeholder="VD: Quy trình, Biểu mẫu, Chung..." />
+          </div>
+        </div>
+        <div className="input-group" style={{ marginTop: '1rem' }}>
+          <label>Mô tả ngắn</label>
+          <input className="input-field" value={description} onChange={e => setDescription(e.target.value)} placeholder="Mô tả nội dung tài liệu..." />
+        </div>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginTop: '1rem' }}>
+          <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+            <label>File (.pdf, .docx, .xlsx, .pptx, .txt) *</label>
+            <input type="file" required className="input-field" onChange={e => setFile(e.target.files[0])} />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={uploading} style={{ height: '42px' }}>
+            {uploading ? 'Đang tải...' : <><Upload size={18} /> Tải lên</>}
+          </button>
+        </div>
+      </form>
+
+      <div className="table-wrapper">
+        <table>
+          <thead><tr><th>File</th><th>Tên tài liệu</th><th>Danh mục</th><th>Kích thước</th><th>Hành động</th></tr></thead>
+          <tbody>
+            {items.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có tài liệu nào</td></tr>}
+            {items.map(item => (
+              <tr key={item.id}>
+                <td style={{ fontSize: '1.5rem' }}>{FILE_ICONS[item.fileType] || '📁'}</td>
+                <td>
+                  <div style={{ fontWeight: 600, color: 'white' }}>{item.title}</div>
+                  {item.description && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.description}</div>}
+                </td>
+                <td><span style={{ background: 'rgba(79,70,229,0.2)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.85rem' }}>{item.category}</span></td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{item.fileType} • {item.fileSize}</td>
+                <td>
+                  <button onClick={() => handleDelete(item.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

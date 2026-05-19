@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
-const { sequelize, Admin, Category, Question, SystemConfig, Submission, Message, Document } = require('../models');
+const { sequelize, Admin, Category, Question, SystemConfig, Submission, Message, Document, Library } = require('../models');
 const multer = require('multer');
 const fs = require('fs');
 
@@ -276,6 +276,45 @@ router.post('/public/message', async (req, res) => {
   try {
     await Message.create(req.body);
     res.json({ msg: 'Message sent' });
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// --- LIBRARY ROUTES (Kho tài liệu) ---
+router.get('/library', auth, async (req, res) => {
+  try {
+    const items = await Library.findAll({ order: [['createdAt', 'DESC']] });
+    res.json(items);
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+router.post('/library', auth, upload.single('file'), async (req, res) => {
+  try {
+    const { title, description, category } = req.body;
+    const fileSize = (req.file.size / 1024).toFixed(1) + ' KB';
+    const fileType = req.file.originalname.split('.').pop().toUpperCase();
+    const item = await Library.create({
+      title, description, category,
+      filePath: req.file.path,
+      fileType, fileSize
+    });
+    res.json(item);
+  } catch (err) { console.error(err); res.status(500).send('Server Error'); }
+});
+
+router.delete('/library/:id', auth, async (req, res) => {
+  try {
+    const item = await Library.findByPk(req.params.id);
+    if (item && fs.existsSync(item.filePath)) fs.unlinkSync(item.filePath);
+    await Library.destroy({ where: { id: req.params.id } });
+    res.json({ msg: 'Deleted' });
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// Public library route
+router.get('/public/library', async (req, res) => {
+  try {
+    const items = await Library.findAll({ order: [['createdAt', 'DESC']] });
+    res.json(items);
   } catch (err) { res.status(500).send('Server Error'); }
 });
 

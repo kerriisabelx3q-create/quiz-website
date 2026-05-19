@@ -5,6 +5,7 @@ import QuizForm from './pages/QuizForm';
 import Quiz from './pages/Quiz';
 import Result from './pages/Result';
 import Contact from './pages/Contact';
+import LibraryPage from './pages/LibraryPage';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import { BrainCircuit, Menu, X } from 'lucide-react';
@@ -26,6 +27,7 @@ function Navbar() {
 
       <div className={`nav-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <Link to="/" onClick={() => setMobileMenuOpen(false)}>Trang chủ</Link>
+        <Link to="/library" onClick={() => setMobileMenuOpen(false)}>Kho tài liệu</Link>
         <Link to="/contact" onClick={() => setMobileMenuOpen(false)}>Liên hệ</Link>
         <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>Admin</Link>
       </div>
@@ -44,6 +46,7 @@ function App() {
           <Route path="/quiz/:categoryId" element={<Quiz />} />
           <Route path="/result" element={<Result />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/library" element={<LibraryPage />} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLogin />} />

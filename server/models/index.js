@@ -67,6 +67,17 @@ const Document = sequelize.define('Document', {
 Category.hasMany(Document, { foreignKey: 'categoryId', onDelete: 'CASCADE' });
 Document.belongsTo(Category, { foreignKey: 'categoryId' });
 
+// Kho tài liệu độc lập (không gắn với phần thi)
+const Library = sequelize.define('Library', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT, defaultValue: '' },
+  filePath: { type: DataTypes.STRING, allowNull: false },
+  fileType: { type: DataTypes.STRING, defaultValue: '' },
+  fileSize: { type: DataTypes.STRING, defaultValue: '' },
+  category: { type: DataTypes.STRING, defaultValue: 'Chung' }
+});
+
 module.exports = {
   sequelize,
   Admin,
@@ -75,5 +86,6 @@ module.exports = {
   SystemConfig,
   Submission,
   Message,
-  Document
+  Document,
+  Library
 };
