@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { Book, FileQuestion, Settings, List, Mail, LogOut, Trash2, FileText, Upload } from 'lucide-react';
+import { Book, FileQuestion, Settings, List, Mail, LogOut, Trash2, FileText, Upload, Pencil, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 function AdminDashboard() {
@@ -48,6 +48,7 @@ function AdminDashboard() {
 function CategoriesManager() {
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ name: '', description: '', questionLimit: 20 });
+  const [editingCat, setEditingCat] = useState(null); // null = not editing
 
   useEffect(() => { fetchCats(); }, []);
   const fetchCats = async () => { const res = await api.get('/categories'); setCategories(res.data); };
@@ -58,6 +59,14 @@ function CategoriesManager() {
     setForm({ name: '', description: '', questionLimit: 20 });
     fetchCats();
   };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    await api.put(`/categories/${editingCat.id}`, editingCat);
+    setEditingCat(null);
+    fetchCats();
+  };
+
   const handleDelete = async (id) => {
     if(window.confirm('Xóa phần thi sẽ xóa tất cả câu hỏi thuộc phần này!')) {
       await api.delete(`/categories/${id}`);
@@ -78,10 +87,41 @@ function CategoriesManager() {
         <table>
           <thead><tr><th>Tên</th><th>Mô tả</th><th>Giới hạn câu hỏi</th><th>Hành động</th></tr></thead>
           <tbody>
-            {categories.map(c => <tr key={c.id}><td>{c.name}</td><td>{c.description}</td><td>{c.questionLimit}</td><td><button onClick={()=>handleDelete(c.id)} style={{background:'none', border:'none', color:'var(--danger)', cursor:'pointer'}}><Trash2 size={18}/></button></td></tr>)}
+            {categories.map(c => (
+              <tr key={c.id}>
+                <td>{c.name}</td>
+                <td>{c.description}</td>
+                <td>{c.questionLimit}</td>
+                <td style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => setEditingCat({ ...c })} style={{background:'none', border:'none', color:'var(--primary)', cursor:'pointer'}}><Pencil size={18}/></button>
+                  <button onClick={()=>handleDelete(c.id)} style={{background:'none', border:'none', color:'var(--danger)', cursor:'pointer'}}><Trash2 size={18}/></button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+
+      {/* Edit Modal */}
+      {editingCat && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-panel" style={{ padding: '2rem', width: '500px', maxWidth: '90vw' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>Sửa phần thi</h3>
+              <button onClick={() => setEditingCat(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            <form onSubmit={handleUpdate}>
+              <div className="input-group"><label>Tên phần thi</label><input className="input-field" required value={editingCat.name} onChange={e => setEditingCat({...editingCat, name: e.target.value})} /></div>
+              <div className="input-group"><label>Mô tả</label><input className="input-field" required value={editingCat.description} onChange={e => setEditingCat({...editingCat, description: e.target.value})} /></div>
+              <div className="input-group"><label>Số câu hỏi tối đa</label><input type="number" className="input-field" required value={editingCat.questionLimit} onChange={e => setEditingCat({...editingCat, questionLimit: Number(e.target.value)})} /></div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button type="button" className="btn" style={{ flex: 1, background: 'var(--surface-border)', color: 'white' }} onClick={() => setEditingCat(null)}>Hủy</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Lưu thay đổi</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

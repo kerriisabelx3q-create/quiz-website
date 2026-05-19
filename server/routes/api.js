@@ -63,6 +63,12 @@ router.get('/categories', auth, async (req, res) => {
     res.json(categories);
   } catch (err) { res.status(500).send('Server Error'); }
 });
+router.put('/categories/:id', auth, async (req, res) => {
+  try {
+    await Category.update(req.body, { where: { id: req.params.id } });
+    res.json({ msg: 'Updated' });
+  } catch (err) { res.status(500).send('Server Error'); }
+});
 router.delete('/categories/:id', auth, async (req, res) => {
   try {
     await Category.destroy({ where: { id: req.params.id } });
