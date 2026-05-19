@@ -17,17 +17,17 @@ app.use(helmet({
 }));
 
 // === 2. GIỚI HẠN TỐC ĐỘ TRUY CẬP (Rate Limiting) ===
-// Chặn tấn công brute-force: Tối đa 100 request/15 phút cho toàn trang
+// Toàn trang: tối đa 500 request/15 phút
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   message: { msg: 'Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút.' }
 });
 
-// Riêng trang đăng nhập: Tối đa 10 lần thử/15 phút
+// Trang đăng nhập: tối đa 20 lần thử/15 phút
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   message: { msg: 'Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau 15 phút.' }
 });
 
