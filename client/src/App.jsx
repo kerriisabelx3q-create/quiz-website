@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
 import QuizForm from './pages/QuizForm';
@@ -7,20 +7,27 @@ import Result from './pages/Result';
 import Contact from './pages/Contact';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import { BrainCircuit } from 'lucide-react';
+import { BrainCircuit, Menu, X } from 'lucide-react';
 
 function Navbar() {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   return (
     <nav className="navbar">
-      <Link to="/" className="nav-brand">
-        <BrainCircuit size={28} color="#4F46E5" />
-        <span>Bổ sung, ôn tập kiến thức nghiệp vụ</span>
+      <Link to="/" className="nav-brand" onClick={() => setMobileMenuOpen(false)}>
+        <BrainCircuit size={28} color="#4F46E5" style={{ flexShrink: 0 }} />
+        <span className="brand-text">Bổ sung, ôn tập kiến thức nghiệp vụ</span>
       </Link>
-      <div className="nav-links">
-        <Link to="/">Trang chủ</Link>
-        <Link to="/contact">Liên hệ</Link>
-        <Link to="/admin">Admin</Link>
+      
+      <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+        {mobileMenuOpen ? <X size={28} color="white" /> : <Menu size={28} color="white" />}
+      </button>
+
+      <div className={`nav-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+        <Link to="/" onClick={() => setMobileMenuOpen(false)}>Trang chủ</Link>
+        <Link to="/contact" onClick={() => setMobileMenuOpen(false)}>Liên hệ</Link>
+        <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>Admin</Link>
       </div>
     </nav>
   );

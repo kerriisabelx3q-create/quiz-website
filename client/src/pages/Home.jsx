@@ -35,6 +35,7 @@ function CategoryCard({ cat }) {
                 href={`/${d.filePath}`} 
                 target="_blank" 
                 rel="noreferrer"
+                download
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none' }}
                 onClick={(e) => e.stopPropagation()}
               >
