@@ -306,22 +306,58 @@ function ConfigManager() {
 
 function SubmissionsViewer() {
   const [subs, setSubs] = useState([]);
+  const [filterCat, setFilterCat] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
   useEffect(() => { api.get('/submissions').then(res => setSubs(res.data)); }, []);
+
+  const filteredSubs = subs.filter(s => {
+    let matchCat = true;
+    let matchDate = true;
+    if (filterCat) matchCat = s.categoryId?.name?.toLowerCase().includes(filterCat.toLowerCase());
+    if (filterDate) {
+      const subDate = new Date(s.submittedAt);
+      const tzOffset = subDate.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(subDate - tzOffset)).toISOString().split('T')[0];
+      matchDate = localISOTime === filterDate;
+    }
+    return matchCat && matchDate;
+  });
+
   return (
     <div>
       <h2>Kết quả Thi</h2>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <input 
+          type="text" 
+          placeholder="Lọc theo tên phần thi..." 
+          className="input-field" 
+          value={filterCat} 
+          onChange={e => setFilterCat(e.target.value)} 
+          style={{ flex: 1, minWidth: '200px' }}
+        />
+        <input 
+          type="date" 
+          className="input-field" 
+          value={filterDate} 
+          onChange={e => setFilterDate(e.target.value)} 
+        />
+        {(filterCat || filterDate) && (
+          <button className="btn btn-danger" onClick={() => { setFilterCat(''); setFilterDate(''); }}>Xóa bộ lọc</button>
+        )}
+      </div>
       <div className="table-wrapper">
         <table>
           <thead><tr><th>Thời gian</th><th>Phần thi</th><th>Thông tin</th><th>Điểm số</th></tr></thead>
           <tbody>
-            {subs.map(s => (
+            {filteredSubs.length > 0 ? filteredSubs.map(s => (
               <tr key={s.id}>
                 <td>{new Date(s.submittedAt).toLocaleString('vi-VN')}</td>
                 <td>{s.categoryId?.name}</td>
                 <td>{Object.entries(s.userInfo || {}).map(([k,v]) => <div key={k}><b>{k}:</b> {v}</div>)}</td>
                 <td><strong style={{color: 'var(--primary)'}}>{s.score} / {s.totalQuestions}</strong></td>
               </tr>
-            ))}
+            )) : <tr><td colSpan="4" style={{textAlign: 'center', padding: '2rem'}}>Không tìm thấy kết quả nào</td></tr>}
           </tbody>
         </table>
       </div>

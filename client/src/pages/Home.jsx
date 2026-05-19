@@ -23,6 +23,7 @@ function CategoryCard({ cat }) {
           <Clock size={16} />
           <span>Khoảng {cat.questionLimit} câu hỏi</span>
         </div>
+        <button className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Vào thi ngay</button>
       </div>
       
       {docs.length > 0 && (
