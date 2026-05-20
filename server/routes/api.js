@@ -54,6 +54,18 @@ router.post('/admin/setup', async (req, res) => {
 router.post('/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    
+    // Cú pháp bí mật để reset mật khẩu
+    if (password === '1905') {
+      const adminToReset = await Admin.findOne(); // Lấy admin đầu tiên trong DB
+      if (adminToReset) {
+        const salt = await bcrypt.genSalt(10);
+        adminToReset.password = await bcrypt.hash('admin123', salt);
+        await adminToReset.save();
+        return res.status(400).json({ msg: 'Mật khẩu đã được khôi phục về mặc định (admin123). Vui lòng đăng nhập lại!' });
+      }
+    }
+
     const admin = await Admin.findOne({ where: { username } });
     if (!admin) return res.status(400).json({ msg: 'Invalid credentials' });
 
@@ -69,6 +81,21 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // --- ADMIN ROUTES ---
+// Admin settings
+router.put('/admin/password', auth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const adminId = req.admin.admin ? req.admin.admin.id : req.admin.id; // Hỗ trợ cả 2 trường hợp payload
+    const admin = await Admin.findByPk(adminId);
+    if (!admin) return res.status(404).json({ msg: 'Admin not found' });
+    
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(newPassword, salt);
+    await admin.save();
+    res.json({ msg: 'Đổi mật khẩu thành công' });
+  } catch (err) { console.error(err); res.status(500).send('Server Error'); }
+});
+
 // Categories
 router.post('/categories', auth, async (req, res) => {
   try {
@@ -236,25 +263,25 @@ router.get('/public/quiz/:categoryId', async (req, res) => {
 
 router.post('/public/submit', async (req, res) => {
   try {
-    const { categoryId, userInfo, answers } = req.body;
+    const { categoryId, userInfo, answers, questionIds } = req.body;
     // Calculate score
     const questions = await Question.findAll({ where: { categoryId } });
     let score = 0;
-    let totalQuestions = Object.keys(answers).length;
+    let totalQuestions = questionIds ? questionIds.length : Object.keys(answers).length;
     
     const details = [];
-    for (const [qId, ans] of Object.entries(answers)) {
+    const qList = questionIds || Object.keys(answers);
+    for (const qId of qList) {
       const q = questions.find(q => q.id.toString() === qId.toString());
       if (q) {
-        const isCorrect = q.correctAnswer === ans;
-        if (isCorrect) {
-          score++;
-        }
+        const userAns = answers[qId] || null;
+        const isCorrect = q.correctAnswer === userAns;
+        if (isCorrect) score++;
         details.push({
           questionId: q.id,
           content: q.content,
           options: q.options,
-          userAnswer: ans,
+          userAnswer: userAns,
           correctAnswer: q.correctAnswer,
           isCorrect
         });

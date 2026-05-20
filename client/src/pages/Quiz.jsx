@@ -38,7 +38,8 @@ function Quiz() {
       const res = await api.post('/public/submit', {
         categoryId,
         userInfo,
-        answers
+        answers,
+        questionIds: quizData.questions.map(q => q.id)
       });
       navigate('/result', { state: { score: res.data.score, total: res.data.totalQuestions, details: res.data.details } });
     } catch (err) {

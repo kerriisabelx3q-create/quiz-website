@@ -35,13 +35,13 @@ app.use(generalLimiter);
 
 // === 3. CORS - Kiểm soát nguồn gốc ===
 const allowedOrigins = process.env.ALLOWED_ORIGIN
-  ? [process.env.ALLOWED_ORIGIN]
+  ? process.env.ALLOWED_ORIGIN.split(',')
   : ['http://localhost:5173', 'http://localhost:4173'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Cho phép nếu không có origin (server-to-server) hoặc origin nằm trong danh sách
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Cho phép nếu không có origin (server-to-server), có wildcard *, hoặc origin nằm trong danh sách
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS: Origin not allowed'));
@@ -79,4 +79,18 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  const os = require('os');
+  const nets = os.networkInterfaces();
+  console.log('\n======================================================');
+  console.log('Hệ thống trắc nghiệm nội bộ đã sẵn sàng!');
+  console.log(`- Truy cập tại máy này: http://localhost:${PORT}`);
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+      if (net.family === 'IPv4' && !net.internal) {
+        console.log(`- Truy cập từ máy khác trong mạng LAN: http://${net.address}:${PORT}`);
+      }
+    }
+  }
+  console.log('======================================================\n');
 });

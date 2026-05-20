@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { Book, FileQuestion, Settings, List, Mail, LogOut, Trash2, FileText, Upload, Pencil, X } from 'lucide-react';
+import { Book, FileQuestion, Settings, List, Mail, LogOut, Trash2, FileText, Upload, Pencil, X, Key } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 function AdminDashboard() {
@@ -29,6 +29,7 @@ function AdminDashboard() {
         <button className={`admin-nav-item ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Settings size={20} /> Cấu hình Form</button>
         <button className={`admin-nav-item ${activeTab === 'submissions' ? 'active' : ''}`} onClick={() => setActiveTab('submissions')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><List size={20} /> Kết quả Thi</button>
         <button className={`admin-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Mail size={20} /> Hộp thư</button>
+        <button className={`admin-nav-item ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Key size={20} /> Đổi mật khẩu</button>
         <div style={{ flex: 1 }}></div>
         <button className="admin-nav-item" onClick={handleLogout} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--danger)', fontFamily: 'Inter' }}><LogOut size={20} /> Đăng xuất</button>
       </div>
@@ -40,12 +41,53 @@ function AdminDashboard() {
         {activeTab === 'config' && <ConfigManager />}
         {activeTab === 'submissions' && <SubmissionsViewer />}
         {activeTab === 'messages' && <MessagesViewer />}
+        {activeTab === 'account' && <AccountManager />}
       </div>
     </div>
   );
 }
 
 // --- Tab Components ---
+
+function AccountManager() {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setMessage('Mật khẩu xác nhận không khớp!');
+      return;
+    }
+    try {
+      await api.put('/admin/password', { newPassword });
+      setMessage('Đổi mật khẩu thành công!');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setMessage('Đã xảy ra lỗi.');
+    }
+  };
+
+  return (
+    <div>
+      <h2>Đổi Mật Khẩu Admin</h2>
+      <form onSubmit={handleUpdate} className="glass-panel" style={{ padding: '2rem', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="input-group" style={{ marginBottom: 0 }}>
+          <label>Mật khẩu mới</label>
+          <input type="password" required className="input-field" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+        </div>
+        <div className="input-group" style={{ marginBottom: 0 }}>
+          <label>Xác nhận mật khẩu mới</label>
+          <input type="password" required className="input-field" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+        </div>
+        {message && <p style={{ color: message.includes('thành công') ? 'var(--success)' : 'var(--danger)' }}>{message}</p>}
+        <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }}>Lưu thay đổi</button>
+      </form>
+    </div>
+  );
+}
 
 function CategoriesManager() {
   const [categories, setCategories] = useState([]);
