@@ -204,6 +204,22 @@ router.delete('/messages/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).send('Server Error'); }
 });
 
+// Xóa một kết quả thi theo ID
+router.delete('/submissions/:id', auth, async (req, res) => {
+  try {
+    await Submission.destroy({ where: { id: req.params.id } });
+    res.json({ msg: 'Deleted' });
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// Xóa toàn bộ kết quả thi
+router.delete('/submissions', auth, async (req, res) => {
+  try {
+    await Submission.destroy({ where: {}, truncate: true });
+    res.json({ msg: 'All submissions deleted' });
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
 // Documents
 router.post('/documents', auth, upload.single('file'), async (req, res) => {
   try {

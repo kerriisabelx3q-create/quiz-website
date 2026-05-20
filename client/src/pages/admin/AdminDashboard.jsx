@@ -392,8 +392,10 @@ function SubmissionsViewer() {
   const [subs, setSubs] = useState([]);
   const [filterCat, setFilterCat] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [selected, setSelected] = useState(new Set());
 
-  useEffect(() => { api.get('/submissions').then(res => setSubs(res.data)); }, []);
+  const fetchSubs = () => api.get('/submissions').then(res => setSubs(res.data));
+  useEffect(() => { fetchSubs(); }, []);
 
   const filteredSubs = subs.filter(s => {
     let matchCat = true;
@@ -408,40 +410,134 @@ function SubmissionsViewer() {
     return matchCat && matchDate;
   });
 
+  const toggleSelect = (id) => {
+    const newSet = new Set(selected);
+    newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+    setSelected(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === filteredSubs.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredSubs.map(s => s.id)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Xác nhận xóa ${selected.size} kết quả thi đã chọn?`)) return;
+    await Promise.all([...selected].map(id => api.delete(`/submissions/${id}`)));
+    setSelected(new Set());
+    fetchSubs();
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Xác nhận XÓA TOÀN BỘ kết quả thi? Hành động này không thể hoàn tác!')) return;
+    await api.delete('/submissions');
+    setSelected(new Set());
+    fetchSubs();
+  };
+
+  const handleExportExcel = () => {
+    if (filteredSubs.length === 0) return alert('Không có dữ liệu để xuất!');
+    const rows = filteredSubs.map((s, i) => {
+      const userInfoFlat = Object.entries(s.userInfo || {}).reduce((acc, [k, v]) => {
+        acc[k] = v;
+        return acc;
+      }, {});
+      return {
+        'STT': i + 1,
+        'Thời gian': new Date(s.submittedAt).toLocaleString('vi-VN'),
+        'Phần thi': s.categoryId?.name || '',
+        ...userInfoFlat,
+        'Điểm số': s.score,
+        'Tổng câu': s.totalQuestions,
+        'Tỷ lệ %': s.totalQuestions > 0 ? ((s.score / s.totalQuestions) * 100).toFixed(1) + '%' : '0%'
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ket qua thi');
+    XLSX.writeFile(wb, `KetQua_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`);
+  };
+
+  const allSelected = filteredSubs.length > 0 && selected.size === filteredSubs.length;
+
   return (
     <div>
-      <h2>Kết quả Thi</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Kết quả Thi</h2>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-success" onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            📊 Xuất Excel
+          </button>
+          {selected.size > 0 && (
+            <button className="btn btn-danger" onClick={handleDeleteSelected}>
+              🗑 Xóa {selected.size} đã chọn
+            </button>
+          )}
+          <button onClick={handleDeleteAll} style={{ background: 'none', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+            Xóa toàn bộ
+          </button>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <input 
-          type="text" 
-          placeholder="Lọc theo tên phần thi..." 
-          className="input-field" 
-          value={filterCat} 
-          onChange={e => setFilterCat(e.target.value)} 
+        <input
+          type="text"
+          placeholder="Lọc theo tên phần thi..."
+          className="input-field"
+          value={filterCat}
+          onChange={e => setFilterCat(e.target.value)}
           style={{ flex: 1, minWidth: '200px' }}
         />
-        <input 
-          type="date" 
-          className="input-field" 
-          value={filterDate} 
-          onChange={e => setFilterDate(e.target.value)} 
+        <input
+          type="date"
+          className="input-field"
+          value={filterDate}
+          onChange={e => setFilterDate(e.target.value)}
         />
         {(filterCat || filterDate) && (
           <button className="btn btn-danger" onClick={() => { setFilterCat(''); setFilterDate(''); }}>Xóa bộ lọc</button>
         )}
       </div>
+
       <div className="table-wrapper">
         <table>
-          <thead><tr><th>Thời gian</th><th>Phần thi</th><th>Thông tin</th><th>Điểm số</th></tr></thead>
+          <thead>
+            <tr>
+              <th style={{ width: '40px', textAlign: 'center' }}>
+                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} title="Chọn tất cả" />
+              </th>
+              <th>Thời gian</th>
+              <th>Phần thi</th>
+              <th>Thông tin</th>
+              <th>Điểm số</th>
+              <th>Xóa</th>
+            </tr>
+          </thead>
           <tbody>
             {filteredSubs.length > 0 ? filteredSubs.map(s => (
-              <tr key={s.id}>
+              <tr key={s.id} style={{ background: selected.has(s.id) ? 'rgba(99,102,241,0.12)' : '' }}>
+                <td style={{ textAlign: 'center' }}>
+                  <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
+                </td>
                 <td>{new Date(s.submittedAt).toLocaleString('vi-VN')}</td>
                 <td>{s.categoryId?.name}</td>
-                <td>{Object.entries(s.userInfo || {}).map(([k,v]) => <div key={k}><b>{k}:</b> {v}</div>)}</td>
-                <td><strong style={{color: 'var(--primary)'}}>{s.score} / {s.totalQuestions}</strong></td>
+                <td>{Object.entries(s.userInfo || {}).map(([k, v]) => <div key={k}><b>{k}:</b> {v}</div>)}</td>
+                <td>
+                  <strong style={{ color: s.score / s.totalQuestions >= 0.5 ? 'var(--success)' : 'var(--danger)' }}>
+                    {s.score} / {s.totalQuestions}
+                  </strong>
+                </td>
+                <td>
+                  <button onClick={() => { if(window.confirm('Xóa kết quả này?')) api.delete(`/submissions/${s.id}`).then(fetchSubs); }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
+                    <Trash2 size={18} />
+                  </button>
+                </td>
               </tr>
-            )) : <tr><td colSpan="4" style={{textAlign: 'center', padding: '2rem'}}>Không tìm thấy kết quả nào</td></tr>}
+            )) : <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>Không tìm thấy kết quả nào</td></tr>}
           </tbody>
         </table>
       </div>
