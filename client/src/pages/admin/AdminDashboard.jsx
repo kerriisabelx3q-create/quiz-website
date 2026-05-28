@@ -593,7 +593,10 @@ function LibraryManager() {
       await api.post('/library', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setTitle(''); setDescription(''); setCategory('Chung'); setFile(null);
       fetchItems();
-    } catch (err) { alert('Lỗi tải lên!'); }
+    } catch (err) {
+      const msg = err?.response?.data?.msg || 'Lỗi tải lên! Vui lòng kiểm tra lại định dạng file.';
+      alert(msg);
+    }
     setUploading(false);
   };
 

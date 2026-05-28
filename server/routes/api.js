@@ -15,25 +15,26 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) { cb(null, 'uploads/') },
   filename: function (req, file, cb) { cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_')) }
 });
-
-// Chỉ cho phép upload các loại file tài liệu an toàn
+// Kiểm tra theo phần mở rộng file thay vì MIME (MIME có thể sai trên Windows)
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['application/pdf', 'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain'
-  ];
-  if (allowedTypes.includes(file.mimetype)) {
+  const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'];
+  const ext = '.' + file.originalname.split('.').pop().toLowerCase();
+  if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
     cb(new Error('Loại file không được phép. Chỉ chấp nhận PDF, Word, Excel, PowerPoint, TXT.'), false);
   }
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 20 * 1024 * 1024 } }); // Giới hạn 20MB
+const upload = multer({ storage, fileFilter, limits: { fileSize: 20 * 1024 * 1024 } });
+
+// Wrapper giúp trả lỗi multer dạng JSON thay vì crash server
+const uploadSingle = (field) => (req, res, next) => {
+  upload.single(field)(req, res, (err) => {
+    if (err) return res.status(400).json({ msg: err.message || 'Lỗi tải file lên.' });
+    next();
+  });
+};
 
 
 // --- AUTH & SETUP ---
@@ -221,12 +222,13 @@ router.delete('/submissions', auth, async (req, res) => {
 });
 
 // Documents
-router.post('/documents', auth, upload.single('file'), async (req, res) => {
+router.post('/documents', auth, uploadSingle('file'), async (req, res) => {
   try {
+    if (!req.file) return res.status(400).json({ msg: 'Vui lòng chọn file để tải lên.' });
     const { categoryId, title } = req.body;
     const newDoc = await Document.create({ categoryId, title, filePath: req.file.path });
     res.json(newDoc);
-  } catch (err) { res.status(500).send('Server Error'); }
+  } catch (err) { res.status(500).json({ msg: 'Lỗi server: ' + err.message }); }
 });
 router.delete('/documents/:id', auth, async (req, res) => {
   try {
@@ -330,8 +332,9 @@ router.get('/library', auth, async (req, res) => {
   } catch (err) { res.status(500).send('Server Error'); }
 });
 
-router.post('/library', auth, upload.single('file'), async (req, res) => {
+router.post('/library', auth, uploadSingle('file'), async (req, res) => {
   try {
+    if (!req.file) return res.status(400).json({ msg: 'Vui lòng chọn file để tải lên.' });
     const { title, description, category } = req.body;
     const fileSize = (req.file.size / 1024).toFixed(1) + ' KB';
     const fileType = req.file.originalname.split('.').pop().toUpperCase();
@@ -341,7 +344,7 @@ router.post('/library', auth, upload.single('file'), async (req, res) => {
       fileType, fileSize
     });
     res.json(item);
-  } catch (err) { console.error(err); res.status(500).send('Server Error'); }
+  } catch (err) { console.error(err); res.status(500).json({ msg: 'Lỗi server: ' + err.message }); }
 });
 
 router.delete('/library/:id', auth, async (req, res) => {
