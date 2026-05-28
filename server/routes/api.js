@@ -26,12 +26,31 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 20 * 1024 * 1024 } });
+// Multer v2: cần khai báo rõ tất cả limits, fieldSize mặc định rất nhỏ
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024,   // 50MB cho file
+    fieldSize: 10 * 1024 * 1024,  // 10MB cho từng field text (multer v2 default rất nhỏ)
+    fields: 20,                    // Tối đa 20 trường text
+    files: 1                       // Chỉ 1 file mỗi lần
+  }
+});
 
 // Wrapper giúp trả lỗi multer dạng JSON thay vì crash server
 const uploadSingle = (field) => (req, res, next) => {
   upload.single(field)(req, res, (err) => {
-    if (err) return res.status(400).json({ msg: err.message || 'Lỗi tải file lên.' });
+    if (err) {
+      // Xử lý lỗi MulterError (v2 dùng err.code)
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ msg: 'File quá lớn! Kích thước tối đa là 50MB.' });
+      }
+      if (err.code === 'LIMIT_FIELD_VALUE') {
+        return res.status(400).json({ msg: 'Dữ liệu form quá lớn.' });
+      }
+      return res.status(400).json({ msg: err.message || 'Lỗi tải file lên.' });
+    }
     next();
   });
 };
