@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
-const { sequelize, Admin, Category, Question, SystemConfig, Submission, Message, Document, Library } = require('../models');
+const { sequelize, Admin, Category, Question, SystemConfig, Submission, Message, Document, Library, Topic, TopicCategory } = require('../models');
 const multer = require('multer');
 const fs = require('fs');
 
@@ -17,12 +17,13 @@ const storage = multer.diskStorage({
 });
 // Kiểm tra theo phần mở rộng file thay vì MIME (MIME có thể sai trên Windows)
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'];
+  const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt',
+    '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.webp'];
   const ext = '.' + file.originalname.split('.').pop().toLowerCase();
   if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Loại file không được phép. Chỉ chấp nhận PDF, Word, Excel, PowerPoint, TXT.'), false);
+    cb(new Error('Loại file không được phép.'), false);
   }
 };
 
@@ -381,6 +382,87 @@ router.get('/public/library', async (req, res) => {
     const items = await Library.findAll({ order: [['createdAt', 'DESC']] });
     res.json(items);
   } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// --- TOPIC ROUTES (Chuyên đề) ---
+
+// [Public] Lấy tất cả chuyên đề kèm danh sách phần thi con
+router.get('/public/topics', async (req, res) => {
+  try {
+    const topics = await Topic.findAll({
+      order: [['displayOrder', 'ASC'], ['createdAt', 'ASC']],
+      include: [{
+        model: Category,
+        attributes: ['id', 'name', 'description', 'questionLimit'],
+        through: { attributes: ['displayOrder'] }
+      }]
+    });
+    res.json(topics);
+  } catch (err) { console.error(err); res.status(500).send('Server Error'); }
+});
+
+// [Admin] Lấy tất cả chuyên đề
+router.get('/topics', auth, async (req, res) => {
+  try {
+    const topics = await Topic.findAll({
+      order: [['displayOrder', 'ASC']],
+      include: [{ model: Category, attributes: ['id', 'name'], through: { attributes: [] } }]
+    });
+    res.json(topics);
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// [Admin] Tạo chuyên đề mới
+router.post('/topics', auth, async (req, res) => {
+  try {
+    const topic = await Topic.create(req.body);
+    res.json(topic);
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// [Admin] Sửa chuyên đề
+router.put('/topics/:id', auth, async (req, res) => {
+  try {
+    await Topic.update(req.body, { where: { id: req.params.id } });
+    const updated = await Topic.findByPk(req.params.id);
+    res.json(updated);
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// [Admin] Xóa chuyên đề
+router.delete('/topics/:id', auth, async (req, res) => {
+  try {
+    await Topic.destroy({ where: { id: req.params.id } });
+    res.json({ msg: 'Deleted' });
+  } catch (err) { res.status(500).send('Server Error'); }
+});
+
+// [Admin] Cập nhật danh sách phần thi trong chuyên đề (gửi mảng categoryIds)
+router.put('/topics/:id/categories', auth, async (req, res) => {
+  try {
+    const topic = await Topic.findByPk(req.params.id);
+    if (!topic) return res.status(404).json({ msg: 'Topic not found' });
+    const { categoryIds } = req.body; // mảng id
+    await topic.setCategories(categoryIds || []);
+    res.json({ msg: 'Updated' });
+  } catch (err) { console.error(err); res.status(500).send('Server Error'); }
+});
+
+// --- FAVICON UPLOAD ---
+router.post('/admin/favicon', auth, uploadSingle('favicon'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ msg: 'Chưa chọn ảnh.' });
+    let config = await SystemConfig.findOne();
+    if (!config) config = await SystemConfig.create({});
+    // Xóa favicon cũ nếu có
+    if (config.faviconUrl) {
+      const oldPath = config.faviconUrl.replace(/^\//, '');
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+    config.faviconUrl = '/' + req.file.path.replace(/\\/g, '/');
+    await config.save();
+    res.json({ faviconUrl: config.faviconUrl });
+  } catch (err) { console.error(err); res.status(500).json({ msg: 'Lỗi server.' }); }
 });
 
 module.exports = router;

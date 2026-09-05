@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import Home from './pages/Home';
 import QuizForm from './pages/QuizForm';
@@ -9,6 +9,7 @@ import LibraryPage from './pages/LibraryPage';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import { BrainCircuit, Menu, X } from 'lucide-react';
+import api from './api';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -36,6 +37,22 @@ function Navbar() {
 }
 
 function App() {
+  // Đọc favicon từ server config và cập nhật động
+  useEffect(() => {
+    api.get('/public/config').then(res => {
+      const url = res.data?.faviconUrl;
+      if (url) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = url;
+      }
+    }).catch(() => {});
+  }, []);
+
   return (
     <BrowserRouter>
       <Navbar />

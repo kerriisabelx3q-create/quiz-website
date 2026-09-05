@@ -37,8 +37,29 @@ Question.belongsTo(Category, { foreignKey: 'categoryId' });
 
 const SystemConfig = sequelize.define('SystemConfig', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  formFields: { type: DataTypes.JSON, defaultValue: [] }
+  formFields: { type: DataTypes.JSON, defaultValue: [] },
+  faviconUrl: { type: DataTypes.STRING, defaultValue: '' }
 });
+
+// Chuyên đề lớn — gộp nhiều phần thi
+const Topic = sequelize.define('Topic', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  name: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT, defaultValue: '' },
+  icon: { type: DataTypes.STRING, defaultValue: '📚' },
+  color: { type: DataTypes.STRING, defaultValue: '#4F46E5' },
+  displayOrder: { type: DataTypes.INTEGER, defaultValue: 0 }
+});
+
+// Bảng trung gian: Chuyên đề ↔ Phần thi (nhiều-nhiều)
+const TopicCategory = sequelize.define('TopicCategory', {
+  topicId: { type: DataTypes.INTEGER, allowNull: false },
+  categoryId: { type: DataTypes.INTEGER, allowNull: false },
+  displayOrder: { type: DataTypes.INTEGER, defaultValue: 0 }
+}, { timestamps: false });
+
+Topic.belongsToMany(Category, { through: TopicCategory, foreignKey: 'topicId', otherKey: 'categoryId' });
+Category.belongsToMany(Topic, { through: TopicCategory, foreignKey: 'categoryId', otherKey: 'topicId' });
 
 const Submission = sequelize.define('Submission', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -87,5 +108,7 @@ module.exports = {
   Submission,
   Message,
   Document,
-  Library
+  Library,
+  Topic,
+  TopicCategory
 };

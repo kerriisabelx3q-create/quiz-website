@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { Book, FileQuestion, Settings, List, Mail, LogOut, Trash2, FileText, Upload, Pencil, X, Key } from 'lucide-react';
+import { Book, FileQuestion, Settings, List, Mail, LogOut, Trash2, FileText, Upload, Pencil, X, Key, Layers, Image, CheckSquare, Square, Palette } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 function AdminDashboard() {
@@ -23,24 +23,28 @@ function AdminDashboard() {
       <div className="admin-sidebar glass-panel" style={{ margin: '0 0 0 1rem', borderTopRightRadius: 0, borderBottomRightRadius: 0 }}>
         <h3 style={{ padding: '1rem', color: 'var(--primary)', borderBottom: '1px solid var(--surface-border)' }}>Admin Panel</h3>
         <button className={`admin-nav-item ${activeTab === 'categories' ? 'active' : ''}`} onClick={() => setActiveTab('categories')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Book size={20} /> Quản lý Phần thi</button>
+        <button className={`admin-nav-item ${activeTab === 'topics' ? 'active' : ''}`} onClick={() => setActiveTab('topics')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Layers size={20} /> Quản lý Chuyên đề</button>
         <button className={`admin-nav-item ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><FileQuestion size={20} /> Quản lý Câu hỏi</button>
         <button className={`admin-nav-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><FileText size={20} /> Tài liệu Tham khảo</button>
         <button className={`admin-nav-item ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Book size={20} /> Kho Tài liệu</button>
         <button className={`admin-nav-item ${activeTab === 'config' ? 'active' : ''}`} onClick={() => setActiveTab('config')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Settings size={20} /> Cấu hình Form</button>
         <button className={`admin-nav-item ${activeTab === 'submissions' ? 'active' : ''}`} onClick={() => setActiveTab('submissions')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><List size={20} /> Kết quả Thi</button>
         <button className={`admin-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Mail size={20} /> Hộp thư</button>
+        <button className={`admin-nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Palette size={20} /> Cài đặt & Icon</button>
         <button className={`admin-nav-item ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'Inter' }}><Key size={20} /> Đổi mật khẩu</button>
         <div style={{ flex: 1 }}></div>
         <button className="admin-nav-item" onClick={handleLogout} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--danger)', fontFamily: 'Inter' }}><LogOut size={20} /> Đăng xuất</button>
       </div>
       <div className="admin-content glass-panel" style={{ margin: '0 1rem 0 0', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: 'none' }}>
         {activeTab === 'categories' && <CategoriesManager />}
+        {activeTab === 'topics' && <TopicsManager />}
         {activeTab === 'questions' && <QuestionsManager />}
         {activeTab === 'documents' && <DocumentsManager />}
         {activeTab === 'library' && <LibraryManager />}
         {activeTab === 'config' && <ConfigManager />}
         {activeTab === 'submissions' && <SubmissionsViewer />}
         {activeTab === 'messages' && <MessagesViewer />}
+        {activeTab === 'settings' && <SettingsManager />}
         {activeTab === 'account' && <AccountManager />}
       </div>
     </div>
@@ -663,6 +667,460 @@ function LibraryManager() {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function TopicsManager() {
+  const [topics, setTopics] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [form, setForm] = useState({ name: '', description: '', icon: '📚', color: '#4F46E5', displayOrder: 0 });
+  const [editingTopic, setEditingTopic] = useState(null);
+  const [assigningTopic, setAssigningTopic] = useState(null);
+  const [selectedCatIds, setSelectedCatIds] = useState([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [topRes, catRes] = await Promise.all([
+        api.get('/topics'),
+        api.get('/categories')
+      ]);
+      setTopics(topRes.data);
+      setCategories(catRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/topics', form);
+      setForm({ name: '', description: '', icon: '📚', color: '#4F46E5', displayOrder: 0 });
+      fetchData();
+    } catch (err) {
+      alert('Lỗi tạo chuyên đề!');
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/topics/${editingTopic.id}`, editingTopic);
+      setEditingTopic(null);
+      fetchData();
+    } catch (err) {
+      alert('Lỗi cập nhật chuyên đề!');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Xác nhận xóa chuyên đề này? Các phần thi con sẽ không bị xóa.')) {
+      await api.delete(`/topics/${id}`);
+      fetchData();
+    }
+  };
+
+  const openAssignModal = (topic) => {
+    setAssigningTopic(topic);
+    setSelectedCatIds(topic.Categories ? topic.Categories.map(c => c.id) : []);
+  };
+
+  const toggleCategory = (catId) => {
+    setSelectedCatIds(prev => 
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    );
+  };
+
+  const selectAllCategories = () => {
+    setSelectedCatIds(categories.map(c => c.id));
+  };
+
+  const deselectAllCategories = () => {
+    setSelectedCatIds([]);
+  };
+
+  const handleSaveCategories = async () => {
+    try {
+      await api.put(`/topics/${assigningTopic.id}/categories`, { categoryIds: selectedCatIds });
+      setAssigningTopic(null);
+      fetchData();
+    } catch (err) {
+      alert('Lỗi lưu danh sách phần thi!');
+    }
+  };
+
+  return (
+    <div>
+      <h2>Quản lý Chuyên đề</h2>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+        Ghép tùy ý các phần thi thành các Chuyên đề lớn. Một phần thi có thể thuộc nhiều chuyên đề khác nhau.
+      </p>
+
+      {/* Form tạo chuyên đề mới */}
+      <form onSubmit={handleCreate} className="glass-panel" style={{ padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Tạo Chuyên đề Mới</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '80px 1.5fr 1fr 100px 90px auto', gap: '1rem', alignItems: 'end' }}>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Icon</label>
+            <input className="input-field" required value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} placeholder="📚" style={{ textAlign: 'center', fontSize: '1.2rem' }} />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Tên chuyên đề *</label>
+            <input className="input-field" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Nghiệp vụ Tín dụng" />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Mô tả ngắn</label>
+            <input className="input-field" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Tóm tắt nội dung..." />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Màu sắc</label>
+            <input type="color" className="input-field" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} style={{ height: '42px', padding: '2px', cursor: 'pointer' }} />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label>Thứ tự</label>
+            <input type="number" className="input-field" value={form.displayOrder} onChange={e => setForm({ ...form, displayOrder: Number(e.target.value) })} />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>Tạo</button>
+        </div>
+      </form>
+
+      {/* Danh sách chuyên đề */}
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: '60px', textAlign: 'center' }}>Icon</th>
+              <th>Tên chuyên đề</th>
+              <th>Mô tả</th>
+              <th style={{ textAlign: 'center' }}>Màu</th>
+              <th style={{ textAlign: 'center' }}>Phần thi đã gán</th>
+              <th style={{ textAlign: 'center' }}>Thứ tự</th>
+              <th style={{ textAlign: 'center' }}>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topics.length === 0 && (
+              <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có chuyên đề nào. Hãy tạo chuyên đề đầu tiên!</td></tr>
+            )}
+            {topics.map(t => {
+              const catCount = t.Categories ? t.Categories.length : 0;
+              return (
+                <tr key={t.id}>
+                  <td style={{ textAlign: 'center', fontSize: '1.5rem' }}>{t.icon || '📚'}</td>
+                  <td>
+                    <strong style={{ color: 'white', fontSize: '1rem' }}>{t.name}</strong>
+                  </td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '250px' }}>
+                    {t.description || '—'}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', width: '22px', height: '22px', borderRadius: '50%', backgroundColor: t.color || '#4F46E5', verticalAlign: 'middle', border: '2px solid white' }} />
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button 
+                      onClick={() => openAssignModal(t)}
+                      className="btn"
+                      style={{ 
+                        padding: '0.35rem 0.75rem', 
+                        fontSize: '0.85rem',
+                        background: catCount > 0 ? 'rgba(79,70,229,0.25)' : 'rgba(255,255,255,0.06)',
+                        border: '1px solid var(--surface-border)',
+                        color: 'white',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      📁 {catCount} phần thi (Ghép)
+                    </button>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{t.displayOrder}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                      <button onClick={() => setEditingTopic({ ...t })} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
+                        <Pencil size={18} />
+                      </button>
+                      <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Edit Topic Modal */}
+      {editingTopic && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-panel" style={{ padding: '2rem', width: '500px', maxWidth: '90vw' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>Sửa Chuyên đề</h3>
+              <button onClick={() => setEditingTopic(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdate}>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '1rem' }}>
+                <div className="input-group">
+                  <label>Icon</label>
+                  <input className="input-field" required value={editingTopic.icon} onChange={e => setEditingTopic({ ...editingTopic, icon: e.target.value })} style={{ textAlign: 'center', fontSize: '1.2rem' }} />
+                </div>
+                <div className="input-group">
+                  <label>Tên chuyên đề</label>
+                  <input className="input-field" required value={editingTopic.name} onChange={e => setEditingTopic({ ...editingTopic, name: e.target.value })} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Mô tả</label>
+                <input className="input-field" value={editingTopic.description || ''} onChange={e => setEditingTopic({ ...editingTopic, description: e.target.value })} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="input-group">
+                  <label>Màu sắc</label>
+                  <input type="color" className="input-field" value={editingTopic.color || '#4F46E5'} onChange={e => setEditingTopic({ ...editingTopic, color: e.target.value })} style={{ height: '42px', padding: '2px', cursor: 'pointer' }} />
+                </div>
+                <div className="input-group">
+                  <label>Thứ tự hiển thị</label>
+                  <input type="number" className="input-field" value={editingTopic.displayOrder || 0} onChange={e => setEditingTopic({ ...editingTopic, displayOrder: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn" style={{ flex: 1, background: 'var(--surface-border)', color: 'white' }} onClick={() => setEditingTopic(null)}>Hủy</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Lưu thay đổi</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Categories Modal */}
+      {assigningTopic && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-panel" style={{ padding: '2rem', width: '600px', maxWidth: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--surface-border)' }}>
+              <div>
+                <h3 style={{ margin: 0, color: 'white' }}>
+                  {assigningTopic.icon} Ghép phần thi vào: <span style={{ color: 'var(--primary)' }}>{assigningTopic.name}</span>
+                </h3>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Tích chọn các phần thi muốn đưa vào chuyên đề này ({selectedCatIds.length} / {categories.length} đã chọn)
+                </p>
+              </div>
+              <button onClick={() => setAssigningTopic(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button type="button" className="btn" style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.08)', color: 'white' }} onClick={selectAllCategories}>
+                Chọn tất cả
+              </button>
+              <button type="button" className="btn" style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.08)', color: 'white' }} onClick={deselectAllCategories}>
+                Bỏ chọn tất cả
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingRight: '0.5rem', marginBottom: '1.5rem' }}>
+              {categories.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Chưa có phần thi nào trong hệ thống. Hãy tạo phần thi trước!</div>
+              ) : (
+                categories.map(cat => {
+                  const isChecked = selectedCatIds.includes(cat.id);
+                  return (
+                    <div 
+                      key={cat.id} 
+                      onClick={() => toggleCategory(cat.id)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.75rem', 
+                        padding: '0.75rem 1rem', 
+                        borderRadius: '8px', 
+                        background: isChecked ? 'rgba(79,70,229,0.2)' : 'rgba(255,255,255,0.04)',
+                        border: isChecked ? '1px solid var(--primary)' : '1px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked} 
+                        onChange={() => {}} 
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: 'white' }}>{cat.name}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{cat.description || 'Không có mô tả'} • {cat.questionLimit} câu</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--surface-border)' }}>
+              <button type="button" className="btn" style={{ flex: 1, background: 'var(--surface-border)', color: 'white' }} onClick={() => setAssigningTopic(null)}>
+                Hủy
+              </button>
+              <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={handleSaveCategories}>
+                Lưu danh sách ({selectedCatIds.length} phần thi)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsManager() {
+  const [currentFavicon, setCurrentFavicon] = useState('');
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    api.get('/public/config').then(res => {
+      if (res.data?.faviconUrl) {
+        setCurrentFavicon(res.data.faviconUrl);
+      }
+    }).catch(console.error);
+  }, []);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setFile(selectedFile);
+    if (selectedFile) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreview(objectUrl);
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const handleUploadFavicon = async (e) => {
+    e.preventDefault();
+    if (!file) return alert('Vui lòng chọn ảnh icon!');
+    setUploading(true);
+    setMessage('');
+    const formData = new FormData();
+    formData.append('favicon', file);
+    try {
+      const res = await api.post('/admin/favicon', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const newUrl = res.data.faviconUrl;
+      setCurrentFavicon(newUrl);
+      setPreview(null);
+      setFile(null);
+      setMessage('Đã cập nhật Icon website (Favicon) thành công!');
+
+      // Update current browser tab icon immediately
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = newUrl;
+    } catch (err) {
+      setMessage('Lỗi khi tải icon lên: ' + (err.response?.data?.msg || err.message));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '650px' }}>
+      <h2>Cài đặt Giao diện & Icon (Favicon)</h2>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+        Tùy chỉnh biểu tượng website (Favicon hiển thị trên tab trình duyệt và bookmark của người dùng).
+      </p>
+
+      <div className="glass-panel" style={{ padding: '2rem', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Icon hiện tại</label>
+            <div style={{ 
+              width: '64px', 
+              height: '64px', 
+              borderRadius: '12px', 
+              background: 'rgba(255,255,255,0.08)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              border: '1px solid var(--surface-border)'
+            }}>
+              {currentFavicon ? (
+                <img src={currentFavicon} alt="Favicon" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+              ) : (
+                <span style={{ fontSize: '2rem' }}>🌐</span>
+              )}
+            </div>
+          </div>
+
+          {preview && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--primary)', fontSize: '0.9rem' }}>Icon mới (Xem trước)</label>
+              <div style={{ 
+                width: '64px', 
+                height: '64px', 
+                borderRadius: '12px', 
+                background: 'rgba(79,70,229,0.15)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                border: '2px dashed var(--primary)'
+              }}>
+                <img src={preview} alt="Xem trước" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleUploadFavicon}>
+          <div className="input-group">
+            <label>Chọn file ảnh Icon (.png, .ico, .svg, .jpg, .webp)</label>
+            <input 
+              type="file" 
+              required 
+              accept=".ico,.png,.jpg,.jpeg,.svg,.webp" 
+              className="input-field" 
+              onChange={handleFileChange} 
+            />
+            <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Khuyến nghị sử dụng ảnh vuông (.png hoặc .ico), kích thước 64x64px, 128x128px hoặc 256x256px.
+            </p>
+          </div>
+
+          {message && (
+            <p style={{ 
+              color: message.includes('thành công') ? 'var(--success)' : 'var(--danger)', 
+              fontWeight: 500,
+              marginBottom: '1rem' 
+            }}>
+              {message}
+            </p>
+          )}
+
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            disabled={uploading || !file}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Upload size={18} />
+            {uploading ? 'Đang lưu icon...' : 'Cập nhật Icon Website'}
+          </button>
+        </form>
       </div>
     </div>
   );
