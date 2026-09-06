@@ -9,12 +9,29 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// === 1. BẢO MẬT HTTP HEADERS (Helmet) ===
-// Tự động thêm các header bảo mật tiêu chuẩn (ngăn XSS, clickjacking, sniff MIME...)
+// === 1. BẢO MẬT HTTP HEADERS (Helmet & Policies) ===
 app.use(helmet({
-  contentSecurityPolicy: false, // Tắt CSP để không chặn assets của React
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"]
+    }
+  },
   crossOriginEmbedderPolicy: false
 }));
+
+// Permissions-Policy header
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // === 2. GIỚI HẠN TỐC ĐỘ TRUY CẬP (Rate Limiting) ===
 // Toàn trang: tối đa 500 request/15 phút
@@ -33,21 +50,37 @@ const loginLimiter = rateLimit({
 
 app.use(generalLimiter);
 
-// === 3. CORS - Kiểm soát nguồn gốc ===
+// === 3. CORS - Kiểm soát nguồn gốc an toàn, không crash 500 ===
 const allowedOrigins = process.env.ALLOWED_ORIGIN
-  ? process.env.ALLOWED_ORIGIN.split(',')
+  ? process.env.ALLOWED_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:4173'];
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // same-origin or non-browser/server-to-server
+  if (allowedOrigins.includes('*')) return true;
+  return allowedOrigins.includes(origin);
+};
+
+// Chặn origin lạ trả về 403 Forbidden thay vì throw exception gây lỗi 500
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !isOriginAllowed(origin)) {
+    return res.status(403).json({ msg: 'Origin không được phép truy cập (CORS forbidden).' });
+  }
+  next();
+});
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Cho phép nếu không có origin (server-to-server), có wildcard *, hoặc origin nằm trong danh sách
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('CORS: Origin not allowed'));
+      // Dùng false thay vì ném Error để không gây unhandled 500 crash
+      callback(null, false);
     }
   },
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: '5mb' })); // Giới hạn payload tối đa 5MB

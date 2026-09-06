@@ -54,40 +54,96 @@ function AdminDashboard() {
 // --- Tab Components ---
 
 function AccountManager() {
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (newPassword.length < 6) {
+      setMessage('Mật khẩu mới phải có ít nhất 6 ký tự!');
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setMessage('Mật khẩu xác nhận không khớp!');
       return;
     }
+    if (oldPassword === newPassword) {
+      setMessage('Mật khẩu mới không được trùng với mật khẩu hiện tại!');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
     try {
-      await api.put('/admin/password', { newPassword });
-      setMessage('Đổi mật khẩu thành công!');
+      const res = await api.put('/admin/password', { oldPassword, newPassword });
+      setMessage(res.data?.msg || 'Đổi mật khẩu thành công!');
+      setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setMessage('Đã xảy ra lỗi.');
+      setMessage(err.response?.data?.msg || 'Đã xảy ra lỗi khi đổi mật khẩu.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div>
       <h2>Đổi Mật Khẩu Admin</h2>
-      <form onSubmit={handleUpdate} className="glass-panel" style={{ padding: '2rem', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+        Để bảo mật, vui lòng nhập mật khẩu hiện tại trước khi thiết lập mật khẩu mới.
+      </p>
+      <form onSubmit={handleUpdate} className="glass-panel" style={{ padding: '2rem', maxWidth: '450px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div className="input-group" style={{ marginBottom: 0 }}>
-          <label>Mật khẩu mới</label>
-          <input type="password" required className="input-field" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+          <label>Mật khẩu hiện tại *</label>
+          <input 
+            type="password" 
+            required 
+            className="input-field" 
+            value={oldPassword} 
+            onChange={e => setOldPassword(e.target.value)} 
+            placeholder="Nhập mật khẩu đang dùng"
+          />
         </div>
         <div className="input-group" style={{ marginBottom: 0 }}>
-          <label>Xác nhận mật khẩu mới</label>
-          <input type="password" required className="input-field" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+          <label>Mật khẩu mới * (tối thiểu 6 ký tự)</label>
+          <input 
+            type="password" 
+            required 
+            minLength={6}
+            className="input-field" 
+            value={newPassword} 
+            onChange={e => setNewPassword(e.target.value)} 
+            placeholder="Nhập mật khẩu mới"
+          />
         </div>
-        {message && <p style={{ color: message.includes('thành công') ? 'var(--success)' : 'var(--danger)' }}>{message}</p>}
-        <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }}>Lưu thay đổi</button>
+        <div className="input-group" style={{ marginBottom: 0 }}>
+          <label>Xác nhận mật khẩu mới *</label>
+          <input 
+            type="password" 
+            required 
+            minLength={6}
+            className="input-field" 
+            value={confirmPassword} 
+            onChange={e => setConfirmPassword(e.target.value)} 
+            placeholder="Nhập lại mật khẩu mới"
+          />
+        </div>
+        {message && (
+          <p style={{ 
+            color: message.includes('thành công') ? 'var(--success)' : 'var(--danger)', 
+            fontWeight: 500,
+            marginTop: '0.5rem' 
+          }}>
+            {message}
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }} disabled={loading}>
+          {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+        </button>
       </form>
     </div>
   );
